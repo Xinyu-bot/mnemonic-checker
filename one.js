@@ -1,9 +1,9 @@
-const { Worker, isMainThread } = require('worker_threads');
-const { program } = require('commander');
-const fs = require('fs');
-const ethers = require('ethers');
-const async = require('async');
-const bip39 = require('bip39');
+import { Worker, isMainThread } from 'worker_threads';
+import { program } from 'commander';
+import { appendFileSync } from 'fs';
+import { providers, Wallet } from 'ethers';
+import { queue } from 'async';
+import { generateMnemonic } from 'bip39';
 
 // Constants
 const N = 12; // Number of worker threads
@@ -12,11 +12,11 @@ const CHECK_INTERVAL = 2000; // 2 seconds
 const REQUEST_DELAY = 200; // Delay between balance check requests in milliseconds
 
 // Address Queue
-const addressQueue = async.queue(async (task, done) => {
+const addressQueue = queue(async (task, done) => {
     try {
         const balance = await provider.getBalance(task.address);
         if (balance.gt(0)) {
-            fs.appendFileSync('results.txt', `${task.address},${task.privateKey},${balance.toString()}\n`);
+            appendFileSync('results.txt', `${task.address},${task.privateKey},${balance.toString()}\n`);
         }
     } catch (error) {
         console.error(`Error checking balance for ${task.address}: ${error.message}`);
@@ -42,11 +42,11 @@ const count = parseInt(options.count) || N;
 console.log(`Starting ${count} processes`.yellow);
 
 // WebSocket Provider
-const provider = new ethers.providers.WebSocketProvider('wss://eth-mainnet.g.alchemy.com/v2/');
+const provider = new providers.WebSocketProvider('wss://eth-mainnet.g.alchemy.com/v2/LtMT0PH0PcZGJzaAEbePg6YzSJB211Aa');
 
 // Function to generate a random 12-word mnemonic
 function gen12() {
-    return bip39.generateMnemonic(128); // 128 bits for 12 words mnemonic
+    return generateMnemonic(128); // 128 bits for 12 words mnemonic
 }
 
 // Address generator function
@@ -55,7 +55,7 @@ async function generateAddresses() {
         if (addressQueue.length() < count * ADDRESS_BATCH_SIZE) {
             for (let i = 0; i < ADDRESS_BATCH_SIZE; i++) {
                 const mnemonic = gen12();
-                const wallet = ethers.Wallet.fromMnemonic(mnemonic);
+                const wallet = Wallet.fromMnemonic(mnemonic);
                 addressQueue.push({ address: wallet.address, privateKey: wallet.privateKey });
                 progress.totalGenerated++;
             }
